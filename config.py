@@ -27,7 +27,7 @@ class Config:
     CRMA_APPLICATION_NAME = os.environ.get('CRMA_APPLICATION_NAME', 'CRMA_Metadata')
 
     # API configuration
-    SALESFORCE_API_VERSION = 'v60.0'
+    SALESFORCE_API_VERSION = 'v62.0'
 
     # Settings file for user overrides
     SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'user_settings.json')

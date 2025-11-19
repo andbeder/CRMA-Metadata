@@ -4,6 +4,8 @@ class CRMAApp {
     constructor() {
         this.dashboards = [];
         this.datasets = [];
+        this.applications = [];
+        this.recipes = [];
         this.dashboardFields = [];
         this.datasetFields = [];
         this.junctionData = [];
@@ -35,6 +37,16 @@ class CRMAApp {
         document.getElementById('load-datasets').addEventListener('click', () => this.loadDatasets());
         document.getElementById('export-datasets-csv').addEventListener('click', () => this.exportCSV('datasets', this.datasets));
         document.getElementById('upload-datasets-crma').addEventListener('click', () => this.showUploadModal('datasets', this.datasets));
+
+        // Applications
+        document.getElementById('load-applications').addEventListener('click', () => this.loadApplications());
+        document.getElementById('export-applications-csv').addEventListener('click', () => this.exportCSV('applications', this.applications));
+        document.getElementById('upload-applications-crma').addEventListener('click', () => this.showUploadModal('applications', this.applications));
+
+        // Recipes
+        document.getElementById('load-recipes').addEventListener('click', () => this.loadRecipes());
+        document.getElementById('export-recipes-csv').addEventListener('click', () => this.exportCSV('recipes', this.recipes));
+        document.getElementById('upload-recipes-crma').addEventListener('click', () => this.showUploadModal('recipes', this.recipes));
 
         // Dashboard Fields
         document.getElementById('load-dashboard-fields').addEventListener('click', () => this.loadDashboardFields());
@@ -195,6 +207,110 @@ class CRMAApp {
                 <td>${this.escapeHtml(ds.MasterLabel)}</td>
                 <td>${this.escapeHtml(ds.Id)}</td>
                 <td>${this.escapeHtml(ds.Application || '-')}</td>
+            </tr>
+        `).join('');
+    }
+
+    async loadApplications() {
+        const loading = document.getElementById('applications-loading');
+        const error = document.getElementById('applications-error');
+        const count = document.getElementById('applications-count');
+        const tbody = document.getElementById('applications-tbody');
+        const exportBtn = document.getElementById('export-applications-csv');
+        const uploadBtn = document.getElementById('upload-applications-crma');
+
+        loading.classList.remove('hidden');
+        error.classList.add('hidden');
+        count.classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/applications');
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            this.applications = data.applications;
+            this.renderApplications();
+
+            count.textContent = `Loaded ${this.applications.length} applications`;
+            count.classList.remove('hidden');
+            exportBtn.disabled = false;
+            uploadBtn.disabled = false;
+            this.checkStatus();
+
+        } catch (err) {
+            error.textContent = `Error: ${err.message}`;
+            error.classList.remove('hidden');
+            tbody.innerHTML = '<tr><td colspan="2" class="no-data">Failed to load applications</td></tr>';
+        } finally {
+            loading.classList.add('hidden');
+        }
+    }
+
+    renderApplications() {
+        const tbody = document.getElementById('applications-tbody');
+        if (this.applications.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" class="no-data">No applications found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.applications.map(app => `
+            <tr>
+                <td>${this.escapeHtml(app.AppLabel)}</td>
+                <td>${this.escapeHtml(app.AppName)}</td>
+            </tr>
+        `).join('');
+    }
+
+    async loadRecipes() {
+        const loading = document.getElementById('recipes-loading');
+        const error = document.getElementById('recipes-error');
+        const count = document.getElementById('recipes-count');
+        const tbody = document.getElementById('recipes-tbody');
+        const exportBtn = document.getElementById('export-recipes-csv');
+        const uploadBtn = document.getElementById('upload-recipes-crma');
+
+        loading.classList.remove('hidden');
+        error.classList.add('hidden');
+        count.classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/recipes');
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            this.recipes = data.recipes;
+            this.renderRecipes();
+
+            count.textContent = `Loaded ${this.recipes.length} recipes`;
+            count.classList.remove('hidden');
+            exportBtn.disabled = false;
+            uploadBtn.disabled = false;
+            this.checkStatus();
+
+        } catch (err) {
+            error.textContent = `Error: ${err.message}`;
+            error.classList.remove('hidden');
+            tbody.innerHTML = '<tr><td colspan="4" class="no-data">Failed to load recipes</td></tr>';
+        } finally {
+            loading.classList.add('hidden');
+        }
+    }
+
+    renderRecipes() {
+        const tbody = document.getElementById('recipes-tbody');
+        if (this.recipes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="no-data">No recipes found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.recipes.map(recipe => `
+            <tr>
+                <td>${this.escapeHtml(recipe.RecipeName)}</td>
+                <td>${this.escapeHtml(recipe.Schedule)}</td>
+                <td>${this.escapeHtml(recipe.MasterLabel)}</td>
+                <td>${this.escapeHtml(recipe.Id)}</td>
             </tr>
         `).join('');
     }
@@ -385,17 +501,44 @@ class CRMAApp {
         this.currentUploadType = type;
         this.currentUploadData = data;
 
-        const typeNames = {
-            'dashboards': 'Dashboards',
-            'datasets': 'Datasets',
-            'dashboard-fields': 'Dashboard Fields',
-            'dataset-fields': 'Dataset Fields',
-            'junction': 'Dashboard-Dataset Junction'
+        const typeConfig = {
+            'dashboards': {
+                name: 'Dashboards',
+                datasetName: 'Dashboards'
+            },
+            'datasets': {
+                name: 'Datasets',
+                datasetName: 'Datasets'
+            },
+            'applications': {
+                name: 'Applications',
+                datasetName: 'Applications'
+            },
+            'recipes': {
+                name: 'Recipes',
+                datasetName: 'Recipes'
+            },
+            'dashboard-fields': {
+                name: 'Dashboard Fields',
+                datasetName: 'DashboardFields'
+            },
+            'dataset-fields': {
+                name: 'Dataset Fields',
+                datasetName: 'Fields'
+            },
+            'junction': {
+                name: 'Dashboard-Dataset Junction',
+                datasetName: 'DashboardDatasetJunction'
+            }
         };
 
+        const config = typeConfig[type];
+        const appName = document.getElementById('applicationName').value || 'Not selected';
+
         document.getElementById('upload-description').textContent =
-            `Upload ${typeNames[type]} metadata to CRMA as a new dataset`;
-        document.getElementById('dataset-name').value = `CRMA_Metadata_${type.replace(/-/g, '_')}`;
+            `Upload ${config.name} metadata to CRMA`;
+        document.getElementById('upload-dataset-name').textContent = config.datasetName;
+        document.getElementById('upload-application-name').textContent = appName;
         document.getElementById('upload-modal').classList.remove('hidden');
     }
 
@@ -406,10 +549,21 @@ class CRMAApp {
     }
 
     async confirmUpload() {
-        const datasetName = document.getElementById('dataset-name').value.trim();
+        const typeConfig = {
+            'dashboards': 'Dashboards',
+            'datasets': 'Datasets',
+            'applications': 'Applications',
+            'recipes': 'Recipes',
+            'dashboard-fields': 'DashboardFields',
+            'dataset-fields': 'Fields',
+            'junction': 'DashboardDatasetJunction'
+        };
 
-        if (!datasetName) {
-            alert('Please enter a dataset name');
+        const datasetName = typeConfig[this.currentUploadType];
+        const appName = document.getElementById('applicationName').value;
+
+        if (!appName) {
+            alert('Please select an Application Name in Settings first');
             return;
         }
 
@@ -432,7 +586,7 @@ class CRMAApp {
 
             if (result.error) throw new Error(result.error);
 
-            alert(`Upload initiated successfully!\nJob ID: ${result.jobId}\nDataset: ${result.datasetName}\nStatus: ${result.status}`);
+            alert(`Upload initiated successfully!\nJob ID: ${result.jobId}\nDataset: ${result.datasetName}\nApplication: ${appName}\nStatus: ${result.status}`);
             this.closeModal();
 
         } catch (err) {

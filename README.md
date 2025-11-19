@@ -108,10 +108,25 @@ The application will be available at: **http://localhost:4000**
    - **Export CSV**: Download all fields used in the dashboard
    - **Upload to CRMA**: Upload metadata directly to CRMA
 
-### Bulk Export
+### Upload to CRMA
 
-- **Export All Datasets**: Exports summary of all datasets as CSV
-- **Export All Dashboards**: Exports summary of all dashboards as CSV
+When you click "Upload to CRMA" for any metadata type, the dataset will be created with a **fixed naming convention**:
+
+| Tab | Dataset Name | Fields |
+|-----|--------------|--------|
+| Dashboards | `Dashboards` | DashboardName, Application, MasterLabel, Id, CreatedBy, LastModifiedBy |
+| Datasets | `Datasets` | DatasetName, MasterLabel, Id, Application |
+| Applications | `Applications` | AppLabel, AppName |
+| Recipes | `Recipes` | RecipeName, Schedule, MasterLabel, Id |
+| Dashboard Fields | `DashboardFields` | DashboardName, StepName, DatasetName, FieldName |
+| Dataset Fields | `Fields` | DatasetName, FieldName, Label, Type |
+| Dashboard-Dataset Junction | `DashboardDatasetJunction` | DashboardName, DatasetName |
+
+**Schedule Field:** For Recipes, the Schedule field is `Y` if the recipe has a schedule configured, `N` if it runs on demand only.
+
+All datasets are uploaded to the application/folder specified in Settings → Application Name.
+
+**Operation:** Overwrite (existing datasets with the same name will be replaced)
 
 ## API Endpoints
 

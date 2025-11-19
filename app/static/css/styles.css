@@ -374,6 +374,25 @@ small {
     justify-content: flex-end;
 }
 
+.upload-info {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.warning-text {
+    padding: 12px;
+    background: #fff3cd;
+    color: #856404;
+    border-radius: 4px;
+    border-left: 4px solid #ffc107;
+    font-size: 13px;
+    margin: 0;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     header {

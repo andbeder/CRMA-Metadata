@@ -18,6 +18,8 @@
         <nav class="tabs">
             <button class="tab-button active" data-tab="dashboards">Dashboards</button>
             <button class="tab-button" data-tab="datasets">Datasets</button>
+            <button class="tab-button" data-tab="applications">Applications</button>
+            <button class="tab-button" data-tab="recipes">Recipes</button>
             <button class="tab-button" data-tab="dashboard-fields">Dashboard Fields</button>
             <button class="tab-button" data-tab="dataset-fields">Dataset Fields</button>
             <button class="tab-button" data-tab="dashboard-dataset-junction">Dashboard-Dataset Junction</button>
@@ -89,6 +91,72 @@
                         <tbody id="datasets-tbody">
                             <tr>
                                 <td colspan="4" class="no-data">Click "Load All Datasets" to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Applications Tab -->
+            <div id="applications-tab" class="tab-content">
+                <h2>Applications</h2>
+                <p class="info-text">List of all CRMA applications/folders</p>
+
+                <div class="controls">
+                    <button id="load-applications" class="btn btn-primary">Load All Applications</button>
+                    <button id="export-applications-csv" class="btn btn-success" disabled>Export to CSV</button>
+                    <button id="upload-applications-crma" class="btn btn-info" disabled>Upload to CRMA</button>
+                </div>
+
+                <div id="applications-loading" class="loading hidden">Loading applications...</div>
+                <div id="applications-error" class="error hidden"></div>
+                <div id="applications-count" class="count-badge hidden"></div>
+
+                <div class="table-container">
+                    <table id="applications-table">
+                        <thead>
+                            <tr>
+                                <th>Application Label</th>
+                                <th>Application Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="applications-tbody">
+                            <tr>
+                                <td colspan="2" class="no-data">Click "Load All Applications" to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recipes Tab -->
+            <div id="recipes-tab" class="tab-content">
+                <h2>Recipes</h2>
+                <p class="info-text">List of all CRMA recipes (dataflows) with scheduling status</p>
+
+                <div class="controls">
+                    <button id="load-recipes" class="btn btn-primary">Load All Recipes</button>
+                    <button id="export-recipes-csv" class="btn btn-success" disabled>Export to CSV</button>
+                    <button id="upload-recipes-crma" class="btn btn-info" disabled>Upload to CRMA</button>
+                </div>
+
+                <div id="recipes-loading" class="loading hidden">Loading recipes...</div>
+                <div id="recipes-error" class="error hidden"></div>
+                <div id="recipes-count" class="count-badge hidden"></div>
+
+                <div class="table-container">
+                    <table id="recipes-table">
+                        <thead>
+                            <tr>
+                                <th>Recipe Name</th>
+                                <th>Schedule</th>
+                                <th>Master Label</th>
+                                <th>ID</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recipes-tbody">
+                            <tr>
+                                <td colspan="4" class="no-data">Click "Load All Recipes" to view data</td>
                             </tr>
                         </tbody>
                     </table>
@@ -255,12 +323,14 @@
             </div>
             <div class="modal-body">
                 <p id="upload-description"></p>
-                <div class="form-group">
-                    <label for="dataset-name">Dataset Name</label>
-                    <input type="text" id="dataset-name"
-                           placeholder="Enter CRMA dataset name" required>
-                    <small>Name for the dataset in CRMA Analytics</small>
+                <div class="upload-info">
+                    <strong>Dataset Name:</strong> <span id="upload-dataset-name"></span><br>
+                    <strong>Application:</strong> <span id="upload-application-name"></span><br>
+                    <strong>Operation:</strong> Overwrite
                 </div>
+                <p class="warning-text">
+                    ⚠️ This will overwrite any existing dataset with the same name in the selected application.
+                </p>
             </div>
             <div class="modal-footer">
                 <button id="confirm-upload" class="btn btn-primary">Upload</button>

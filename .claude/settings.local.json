@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "WebSearch",
+      "WebFetch(domain:developer.salesforce.com)",
+      "WebFetch(domain:resources.docs.salesforce.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

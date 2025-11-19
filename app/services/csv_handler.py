@@ -12,7 +12,7 @@ from typing import List, Dict
 class CSVHandler:
     """Handle CSV generation and CRMA uploads"""
 
-    def __init__(self, access_token=None, instance_url=None, api_version='v60.0'):
+    def __init__(self, access_token=None, instance_url=None, api_version='v62.0'):
         self.access_token = access_token
         self.instance_url = instance_url
         self.api_version = api_version
@@ -26,7 +26,7 @@ class CSVHandler:
         Returns: CSV string
         """
         output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=headers)
+        writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(data)
         return output.getvalue()
@@ -63,7 +63,7 @@ class CSVHandler:
 
     def upload_to_crma(self, dataset_name: str, csv_data: str, operation='Overwrite', application_name=None):
         """
-        Upload CSV data to CRMA as a dataset
+        Upload CSV data to CRMA as a dataset using InsightsExternalData API
         Args:
             dataset_name: Name of the dataset to create/update
             csv_data: CSV data as string
@@ -79,15 +79,15 @@ class CSVHandler:
             'Content-Type': 'application/json'
         }
 
-        base_url = f"{self.instance_url}/services/data/{self.api_version}/wave"
+        base_url = f"{self.instance_url}/services/data/{self.api_version}"
 
         # Step 1: Create InsightsExternalData record
         metadata = {
-            'Format': 'CSV',
+            'Format': 'Csv',
             'EdgemartAlias': dataset_name,
+            'EdgemartLabel': dataset_name,
             'Operation': operation,
-            'Action': 'None',
-            'EdgemartLabel': dataset_name
+            'Action': 'None'
         }
 
         # Add application/folder if specified
@@ -95,43 +95,43 @@ class CSVHandler:
             metadata['EdgemartContainer'] = application_name
 
         response = requests.post(
-            f"{base_url}/dataConnectors",
+            f"{base_url}/sobjects/InsightsExternalData",
             headers=headers,
             json=metadata,
             timeout=30
         )
         response.raise_for_status()
-        data_connector = response.json()
-        job_id = data_connector['id']
+        result = response.json()
+        job_id = result['id']
 
-        # Step 2: Upload CSV data in chunks (max 1MB per chunk)
+        # Step 2: Upload CSV data in parts (max 10MB per part)
         csv_bytes = csv_data.encode('utf-8')
-        chunk_size = 1024 * 1024  # 1MB
+        chunk_size = 10 * 1024 * 1024  # 10MB (maximum per Salesforce docs)
         part_number = 1
 
         for i in range(0, len(csv_bytes), chunk_size):
             chunk = csv_bytes[i:i + chunk_size]
             encoded_chunk = base64.b64encode(chunk).decode('utf-8')
 
-            upload_data = {
+            part_data = {
                 'InsightsExternalDataId': job_id,
                 'PartNumber': part_number,
                 'DataFile': encoded_chunk
             }
 
             response = requests.post(
-                f"{base_url}/dataConnectorIngestionJobs/{job_id}/dataConnectorIngestionJobParts",
+                f"{base_url}/sobjects/InsightsExternalDataPart",
                 headers=headers,
-                json=upload_data,
+                json=part_data,
                 timeout=60
             )
             response.raise_for_status()
             part_number += 1
 
-        # Step 3: Trigger processing
+        # Step 3: Trigger processing by updating Action to 'Process'
         process_data = {'Action': 'Process'}
         response = requests.patch(
-            f"{base_url}/dataConnectors/{job_id}",
+            f"{base_url}/sobjects/InsightsExternalData/{job_id}",
             headers=headers,
             json=process_data,
             timeout=30

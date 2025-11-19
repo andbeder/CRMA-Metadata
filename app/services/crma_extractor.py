@@ -7,6 +7,7 @@ import json
 import html
 import requests
 from typing import List, Dict, Set, Tuple, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class CRMAExtractor:
@@ -62,6 +63,10 @@ class CRMAExtractor:
                 results.extend(data.get('dashboards', []))
             elif 'datasets' in data:
                 results.extend(data.get('datasets', []))
+            elif 'folders' in data:
+                results.extend(data.get('folders', []))
+            elif 'recipes' in data:
+                results.extend(data.get('recipes', []))
             else:
                 results.extend(data.get('records', []))
 
@@ -135,6 +140,55 @@ class CRMAExtractor:
 
         # Sort by label for easier selection
         result.sort(key=lambda x: x['Label'])
+        return result
+
+    def get_applications(self):
+        """
+        Retrieve all CRMA applications (folders)
+        Returns: List of application metadata with AppLabel and AppName
+        """
+        print("Loading CRMA applications...")
+        folders = self._paginate('folders')
+
+        result = []
+        for folder in folders:
+            result.append({
+                'AppLabel': folder.get('label'),
+                'AppName': folder.get('name')
+            })
+
+        # Sort by label for easier reading
+        result.sort(key=lambda x: x['AppLabel'])
+        return result
+
+    def get_recipes(self):
+        """
+        Retrieve all CRMA recipes
+        Returns: List of recipe metadata
+        """
+        print("Loading CRMA recipes...")
+        recipes = self._paginate('recipes')
+
+        result = []
+        for recipe in recipes:
+            # Determine if recipe is scheduled
+            schedule_status = 'N'
+
+            # Check if there's a schedule defined
+            # Recipes have a 'scheduleEnabled' field or similar
+            if recipe.get('scheduleEnabled') or recipe.get('assetSharingUrl'):
+                # If there's schedule information, mark as Y
+                schedule_status = 'Y'
+
+            result.append({
+                'RecipeName': recipe.get('name'),
+                'MasterLabel': recipe.get('label'),
+                'Id': recipe.get('id'),
+                'Schedule': schedule_status
+            })
+
+        # Sort by label
+        result.sort(key=lambda x: x['MasterLabel'])
         return result
 
     def get_dashboard_fields(self, dashboard_id):
@@ -394,3 +448,100 @@ class CRMAExtractor:
                 })
 
         return fields
+
+    def get_dashboard_fields_concurrent(self, dashboards, max_workers=5):
+        """
+        Extract fields from multiple dashboards concurrently
+        Args:
+            dashboards: List of dashboard metadata dicts (must have 'Id' and 'DashboardName')
+            max_workers: Maximum number of concurrent threads (default: 5)
+        Returns:
+            dict with 'fields' (list of field records) and 'errors' (list of error messages)
+        """
+        all_fields = []
+        errors = []
+
+        def extract_single_dashboard(dashboard):
+            """Helper function to extract fields from a single dashboard"""
+            try:
+                result = self.get_dashboard_fields(dashboard['Id'])
+                # Add dashboard name to each field
+                fields_with_dashboard = []
+                for field in result['fields']:
+                    fields_with_dashboard.append({
+                        'DashboardName': dashboard['DashboardName'],
+                        'StepName': field['StepName'],
+                        'DatasetName': field['DatasetName'],
+                        'FieldName': field['FieldName']
+                    })
+                return {'success': True, 'fields': fields_with_dashboard}
+            except Exception as e:
+                error_msg = f"Error extracting fields from dashboard {dashboard['DashboardName']}: {e}"
+                print(error_msg)
+                return {'success': False, 'error': error_msg}
+
+        # Process dashboards concurrently
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_dashboard = {
+                executor.submit(extract_single_dashboard, dashboard): dashboard
+                for dashboard in dashboards
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_dashboard):
+                result = future.result()
+                if result['success']:
+                    all_fields.extend(result['fields'])
+                else:
+                    errors.append(result['error'])
+
+        return {'fields': all_fields, 'errors': errors}
+
+    def get_dashboard_datasets_concurrent(self, dashboards, max_workers=5):
+        """
+        Extract dataset relationships from multiple dashboards concurrently
+        Args:
+            dashboards: List of dashboard metadata dicts (must have 'Id' and 'DashboardName')
+            max_workers: Maximum number of concurrent threads (default: 5)
+        Returns:
+            dict with 'relationships' (list of junction records) and 'errors' (list of error messages)
+        """
+        junction_data = []
+        errors = []
+
+        def extract_single_dashboard_datasets(dashboard):
+            """Helper function to extract datasets from a single dashboard"""
+            try:
+                result = self.get_dashboard_fields(dashboard['Id'])
+                # Get unique dataset names
+                datasets = result.get('datasets', [])
+                relationships = []
+                for dataset in datasets:
+                    relationships.append({
+                        'DashboardName': dashboard['DashboardName'],
+                        'DatasetName': dataset
+                    })
+                return {'success': True, 'relationships': relationships}
+            except Exception as e:
+                error_msg = f"Error extracting datasets from dashboard {dashboard['DashboardName']}: {e}"
+                print(error_msg)
+                return {'success': False, 'error': error_msg}
+
+        # Process dashboards concurrently
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_dashboard = {
+                executor.submit(extract_single_dashboard_datasets, dashboard): dashboard
+                for dashboard in dashboards
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_dashboard):
+                result = future.result()
+                if result['success']:
+                    junction_data.extend(result['relationships'])
+                else:
+                    errors.append(result['error'])
+
+        return {'relationships': junction_data, 'errors': errors}

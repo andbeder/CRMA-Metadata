@@ -89,6 +89,42 @@ def get_folders():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@bp.route('/applications', methods=['GET'])
+def get_applications():
+    """Get all CRMA applications"""
+    try:
+        auth = get_auth()
+        token_info = auth.get_token()
+
+        extractor = CRMAExtractor(
+            token_info['accessToken'],
+            token_info['instanceUrl']
+        )
+
+        applications = extractor.get_applications()
+        return jsonify({'applications': applications})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/recipes', methods=['GET'])
+def get_recipes():
+    """Get all CRMA recipes (dataflows)"""
+    try:
+        auth = get_auth()
+        token_info = auth.get_token()
+
+        extractor = CRMAExtractor(
+            token_info['accessToken'],
+            token_info['instanceUrl']
+        )
+
+        recipes = extractor.get_recipes()
+        return jsonify({'recipes': recipes})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @bp.route('/extract/dashboard/<dashboard_id>', methods=['GET'])
 def extract_dashboard(dashboard_id):
     """Extract metadata for a specific dashboard"""
@@ -127,7 +163,7 @@ def extract_dataset(dataset_id):
 
 @bp.route('/extract/all-dashboard-fields', methods=['GET'])
 def extract_all_dashboard_fields():
-    """Extract fields from ALL dashboards"""
+    """Extract fields from ALL dashboards (with concurrent processing)"""
     try:
         auth = get_auth()
         token_info = auth.get_token()
@@ -139,25 +175,15 @@ def extract_all_dashboard_fields():
 
         # Get all dashboards
         dashboards = extractor.get_dashboards()
-        all_fields = []
 
-        # Extract fields from each dashboard
-        for dashboard in dashboards:
-            try:
-                result = extractor.get_dashboard_fields(dashboard['Id'])
-                # Add dashboard name to each field
-                for field in result['fields']:
-                    all_fields.append({
-                        'DashboardName': dashboard['DashboardName'],
-                        'StepName': field['StepName'],
-                        'DatasetName': field['DatasetName'],
-                        'FieldName': field['FieldName']
-                    })
-            except Exception as e:
-                print(f"Error extracting fields from dashboard {dashboard['DashboardName']}: {e}")
-                continue
+        # Extract fields from all dashboards concurrently (max 5 threads)
+        result = extractor.get_dashboard_fields_concurrent(dashboards, max_workers=5)
 
-        return jsonify({'fields': all_fields, 'count': len(all_fields)})
+        return jsonify({
+            'fields': result['fields'],
+            'count': len(result['fields']),
+            'errors': result['errors'] if result['errors'] else None
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -201,7 +227,7 @@ def extract_all_dataset_fields():
 
 @bp.route('/extract/dashboard-dataset-junction', methods=['GET'])
 def extract_dashboard_dataset_junction():
-    """Extract dashboard-dataset relationships"""
+    """Extract dashboard-dataset relationships (with concurrent processing)"""
     try:
         auth = get_auth()
         token_info = auth.get_token()
@@ -213,24 +239,15 @@ def extract_dashboard_dataset_junction():
 
         # Get all dashboards
         dashboards = extractor.get_dashboards()
-        junction_data = []
 
-        # Extract datasets used by each dashboard
-        for dashboard in dashboards:
-            try:
-                result = extractor.get_dashboard_fields(dashboard['Id'])
-                # Get unique dataset names
-                datasets = result.get('datasets', [])
-                for dataset in datasets:
-                    junction_data.append({
-                        'DashboardName': dashboard['DashboardName'],
-                        'DatasetName': dataset
-                    })
-            except Exception as e:
-                print(f"Error extracting datasets from dashboard {dashboard['DashboardName']}: {e}")
-                continue
+        # Extract datasets from all dashboards concurrently (max 5 threads)
+        result = extractor.get_dashboard_datasets_concurrent(dashboards, max_workers=5)
 
-        return jsonify({'relationships': junction_data, 'count': len(junction_data)})
+        return jsonify({
+            'relationships': result['relationships'],
+            'count': len(result['relationships']),
+            'errors': result['errors'] if result['errors'] else None
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -269,6 +286,16 @@ def export_csv():
             headers = ['DashboardName', 'DatasetName']
             csv_data = csv_handler.generate_csv(export_data, headers)
             filename = 'dashboard_dataset_junction.csv'
+
+        elif export_type == 'applications':
+            headers = ['AppLabel', 'AppName']
+            csv_data = csv_handler.generate_csv(export_data, headers)
+            filename = 'applications.csv'
+
+        elif export_type == 'recipes':
+            headers = ['RecipeName', 'Schedule', 'MasterLabel', 'Id']
+            csv_data = csv_handler.generate_csv(export_data, headers)
+            filename = 'recipes.csv'
 
         else:
             return jsonify({'error': 'Invalid export type'}), 400
@@ -320,6 +347,14 @@ def upload_crma():
 
         elif export_type == 'junction':
             headers = ['DashboardName', 'DatasetName']
+            csv_data = csv_handler.generate_csv(export_data, headers)
+
+        elif export_type == 'applications':
+            headers = ['AppLabel', 'AppName']
+            csv_data = csv_handler.generate_csv(export_data, headers)
+
+        elif export_type == 'recipes':
+            headers = ['RecipeName', 'Schedule', 'MasterLabel', 'Id']
             csv_data = csv_handler.generate_csv(export_data, headers)
 
         else:
