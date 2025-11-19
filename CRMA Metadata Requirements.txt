@@ -1,0 +1,113 @@
+I have created an example SFDC login facatility in sfdcJwtAuth.js which works
+ (it connects to Salesforce). Incorporate this code into your design. I want you to design a Python + Flask app
+which serves up a front end which allows me to individually extract each dataset's worth of data, write as a CSV, or
+ (optionally) upload the file directly as a CRMA dataset. The app should be based at localhost:4000 and include
+settings tab which allows me to enter my SFDC user name (use instead of the ENV)
+
+Introduction
+This document specifies the functional and technical requirements for a Salesforce Analytics Metadata Extractor. The purpose of this tool is to connect to a Salesforce org, retrieve CRM Analytics (Wave) dashboards and datasets, parse their JSON definitions (in both �compact� and SAQL formats), extract every dataset?field combination used, and produce a complete inventory suitable for downstream reporting or ingestion.
+Scope
+* Connect to a Salesforce org via OAuth2 (�password� grant) using provided credentials.
+* Fetch all dashboards and datasets via the Analytics REST API.
+* Parse each dashboard�s JSON state to extract:
+o Global filter fields
+o Data-source link fields
+o Step-level fields from both compact JSON queries and SAQL scripts (including embedded and nested formats)
+* Produce output artifacts listing:
+o Dashboard definitions (name, folder, label, IDs, creators)
+o Dataset definitions (name, label, IDs, container)
+o Dashboard-field inventory: each row = (Dashboard, Step, Dataset, Field)
+o Dataset-field inventory via XMD metadata
+o Junction tables (Dashboard?Dataset)
+* Handle all known permutations of JSON query definitions, including:
+o Native JSON objects under "query" with arrays of measures, groups, filters, etc.
+o JSON-string inside a "query" property that must be unescaped and reparsed
+o SAQL scripts under "pigql" or standalone "saql"/string "query" properties
+* Support robust error handling, retries, and progress feedback.
+Functional Requirements
+1. Configuration & Authentication
+1.1 The tool SHALL accept a properties file specifying:
+* username, password, securityKey
+* endpoint (e.g. https://your-org.my.salesforce.com)
+* client_id, client_secret
+1.2 The tool SHALL perform OAuth2 authentication via REST (/services/oauth2/token) and cache the access token for subsequent calls.
+2. Dashboard & Dataset Retrieval
+2.1 The tool SHALL paginate through /services/data/vXX.0/wave/dashboards to list all dashboards.
+2.2 For each dashboard record, capture: DashboardName, FolderName, Label, ID, CreatedBy, LastModifiedBy.
+2.3 The tool SHALL paginate through /services/data/vXX.0/wave/datasets to list all datasets.
+2.4 For each dataset record, capture: DatasetName, Label, ID, Container (folder), currentVersionUrl for metadata.
+3. JSON Parsing & Field Extraction
+3.1 Global Filters
+* In the dashboard JSON�s state.filters array, extract each dataset.name and every entry in its fields array.
+3.2 Data-Source Links
+* Under state.dataSourceLinksInfo.links[], extract each link�s fields[].(dataSourceName, fieldName).
+3.3 Step-Level Queries
+* Under state.steps.<stepKey>, locate all query definitions by recursively scanning:
+o Keys named "query" whose value is a JSON object
+o Keys named "pigql" or "saql", or "query" whose value is a string
+* Compact JSON Queries (query ? JSONObject):
+o If the object contains measures, groups, values, or filters arrays, extract each string element as a (dataset, field) pair.
+o If the object contains a query string (escaped JSON), unescape HTML entities (e.g. &quot; ? ", &#92; ? \), parse into JSON, and then repeat extraction.
+o If the object contains a pigql property, treat its value as SAQL (see SAQL rules).
+* SAQL Queries (string scripts):
+o Identify all load "DatasetName" statements (case-insensitive).
+o For each loaded dataset, find all occurrences of quoted fields ('FieldName') and record each as a (dataset, field) pair.
+3.4 Deduplication
+* The tool SHALL dedupe across Global, Data-Source Links, and Step-Level extractions so each (Dashboard, Step, Dataset, Field) appears only once.
+4. Dataset Field Inventory
+4.1 For each dataset�s currentVersionUrl, fetch XMD metadata containing arrays:
+* dates[].fields.fullField
+* dimensions[].field
+* measures[].field
+4.2 Extract each field along with its label and type (Date, Dimension, Measure).
+5. Output Generation
+5.1 The tool SHALL write or upload (via Analytics API) CSV artifacts with headers:
+* Dashboards: (DashbaordName, Application, MasterLabel, Id, CreatedBy, LastModifiedBy)
+* Datasets: (DatasetName, MasterLabel, Id, Application)
+* DashboardFields: (DashboardName, StepName, DatasetName, FieldName)
+* DatasetFields: (DatasetName, FieldName, Label, Type)
+* DashboardDatasetJunction: (DashboardName, DatasetName)
+5.2 If uploading via API, the tool SHALL split large payloads into 1MB Base64-encoded chunks with retry logic on failures.
+6. Progress & Error Handling
+6.1 The tool SHALL log progress at each major stage: �Loading Dashboards,� �Parsing Fields,� �Uploading��
+6.2 Transient HTTP failures SHALL be retried up to 3 times with exponential backoff.
+6.3 Parsing errors in a particular step/query SHALL be logged with context (step name and snippet) and skipped, without aborting the entire run.
+Use Cases for JSON Parsing
+Use Case ID
+Description
+Input Example
+Expected Extraction
+UC-1: Native Compact JSON
+Dashboard step has query: { "measures":[["sum","Amount"]], "groups":[["CloseDate_Year","CloseDate_Week"]], � }
+See CloseDate_Year_Close_1 in Dashboard.json ?dashboard
+Extract opportunity ? Amount, CloseDate_Year, CloseDate_Week
+UC-2: Escaped JSON String
+Dashboard step has query: { "query":"{\"measures\":[[\"count\",\"*\"]], �}" }
+See ActivityDate_Year_Ac_1 in Dashboard.json ?dashboard
+Unescape & parse inner JSON; extract activity1 ? count, ActivityDate_Year, ActivityDate_Week, IsClosed
+UC-3: Embedded pigql SAQL
+Compact JSON has "pigql":"a = load \"opportunity\"; b = filter a by 'IsClosed' == \"false\"; �;"
+See Mobile_Forecast_Chart in Dashboard.json ?dashboard
+From pigql, extract opportunity ? IsWon, IsClosed, Amount
+UC-4: Standalone SAQL String
+Dashboard step has "saql":"a = load \"quota\"; b = group �; �"
+See kpi_remaining_after_forecast in Dashboard.json ?dashboard
+Extract quota ? all fields matched by '�' patterns
+UC-5: Nested Arrays & Filters
+JSON array under filters: [["CloseDate",[["fiscal_year",0],["fiscal_year",0]]]]
+See filters array in Dashboard.json ?dashboard
+Extract opportunity ? CloseDate
+Technical Requirements
+* Concurrency:
+o Parallel fetching of per-dashboard JSON metadata (configurable thread pool).
+* Dependency Management:
+o Maven or Gradle for HTTP, JSON, logging dependencies.
+* Configuration:
+o Command-line interface supporting -dir and -sf switches for working directory and SF props file.
+* Logging:
+o SLF4J (or similar) at INFO level for progress, WARN/ERROR for issues.
+* Testing:
+o Unit tests covering each JSON parsing permutation using sample fragments from Dashboard.json and edge cases (malformed JSON).
+* Error Reporting:
+o On parsing failure, log step name, JSON snippet, and continue processing other steps.
+

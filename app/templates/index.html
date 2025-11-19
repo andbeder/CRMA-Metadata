@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRMA Metadata Extractor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CRMA Metadata Extractor</h1>
+            <div id="status-indicator" class="status-disconnected">
+                <span id="status-text">Disconnected</span>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-button active" data-tab="dashboards">Dashboards</button>
+            <button class="tab-button" data-tab="datasets">Datasets</button>
+            <button class="tab-button" data-tab="dashboard-fields">Dashboard Fields</button>
+            <button class="tab-button" data-tab="dataset-fields">Dataset Fields</button>
+            <button class="tab-button" data-tab="dashboard-dataset-junction">Dashboard-Dataset Junction</button>
+            <button class="tab-button" data-tab="settings">Settings</button>
+        </nav>
+
+        <main>
+            <!-- Dashboards Tab -->
+            <div id="dashboards-tab" class="tab-content active">
+                <h2>Dashboards</h2>
+                <p class="info-text">List of all CRMA dashboards with metadata</p>
+
+                <div class="controls">
+                    <button id="load-dashboards" class="btn btn-primary">Load All Dashboards</button>
+                    <button id="export-dashboards-csv" class="btn btn-success" disabled>Export to CSV</button>
+                    <button id="upload-dashboards-crma" class="btn btn-info" disabled>Upload to CRMA</button>
+                </div>
+
+                <div id="dashboards-loading" class="loading hidden">Loading dashboards...</div>
+                <div id="dashboards-error" class="error hidden"></div>
+                <div id="dashboards-count" class="count-badge hidden"></div>
+
+                <div class="table-container">
+                    <table id="dashboards-table">
+                        <thead>
+                            <tr>
+                                <th>Dashboard Name</th>
+                                <th>Application</th>
+                                <th>Master Label</th>
+                                <th>ID</th>
+                                <th>Created By</th>
+                                <th>Last Modified By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboards-tbody">
+                            <tr>
+                                <td colspan="6" class="no-data">Click "Load All Dashboards" to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Datasets Tab -->
+            <div id="datasets-tab" class="tab-content">
+                <h2>Datasets</h2>
+                <p class="info-text">List of all CRMA datasets with metadata</p>
+
+                <div class="controls">
+                    <button id="load-datasets" class="btn btn-primary">Load All Datasets</button>
+                    <button id="export-datasets-csv" class="btn btn-success" disabled>Export to CSV</button>
+                    <button id="upload-datasets-crma" class="btn btn-info" disabled>Upload to CRMA</button>
+                </div>
+
+                <div id="datasets-loading" class="loading hidden">Loading datasets...</div>
+                <div id="datasets-error" class="error hidden"></div>
+                <div id="datasets-count" class="count-badge hidden"></div>
+
+                <div class="table-container">
+                    <table id="datasets-table">
+                        <thead>
+                            <tr>
+                                <th>Dataset Name</th>
+                                <th>Master Label</th>
+                                <th>ID</th>
+                                <th>Application</th>
+                            </tr>
+                        </thead>
+                        <tbody id="datasets-tbody">
+                            <tr>
+                                <td colspan="4" class="no-data">Click "Load All Datasets" to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Dashboard Fields Tab -->
+            <div id="dashboard-fields-tab" class="tab-content">
+                <h2>Dashboard Fields</h2>
+                <p class="info-text">All fields used across all dashboards (extracted from steps, filters, and links)</p>
+
+                <div class="controls">
+                    <button id="load-dashboard-fields" class="btn btn-primary">Load All Dashboard Fields</button>
+                    <button id="export-dashboard-fields-csv" class="btn btn-success" disabled>Export to CSV</button>
+                    <button id="upload-dashboard-fields-crma" class="btn btn-info" disabled>Upload to CRMA</button>
+                </div>
+
+                <div id="dashboard-fields-loading" class="loading hidden">Loading dashboard fields...</div>
+                <div id="dashboard-fields-error" class="error hidden"></div>
+                <div id="dashboard-fields-count" class="count-badge hidden"></div>
+
+                <div class="table-container">
+                    <table id="dashboard-fields-table">
+                        <thead>
+                            <tr>
+                                <th>Dashboard Name</th>
+                                <th>Step Name</th>
+                                <th>Dataset Name</th>
+                                <th>Field Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-fields-tbody">
+                            <tr>
+                                <td colspan="4" class="no-data">Click "Load All Dashboard Fields" to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Dataset Fields Tab -->
+            <div id="dataset-fields-tab" class="tab-content">
+                <h2>Dataset Fields</h2>
+                <p class="info-text">All fields defined in dataset XMD metadata (dimensions, measures, dates)</p>
+
+                <div class="controls">
+                    <button id="load-dataset-fields" class="btn btn-primary">Load All Dataset Fields</button>
+                    <button id="export-dataset-fields-csv" class="btn btn-success" disabled>Export to CSV</button>
+                    <button id="upload-dataset-fields-crma" class="btn btn-info" disabled>Upload to CRMA</button>
+                </div>
+
+                <div id="dataset-fields-loading" class="loading hidden">Loading dataset fields...</div>
+                <div id="dataset-fields-error" class="error hidden"></div>
+                <div id="dataset-fields-count" class="count-badge hidden"></div>
+
+                <div class="table-container">
+                    <table id="dataset-fields-table">
+                        <thead>
+                            <tr>
+                                <th>Dataset Name</th>
+                                <th>Field Name</th>
+                                <th>Label</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataset-fields-tbody">
+                            <tr>
+                                <td colspan="4" class="no-data">Click "Load All Dataset Fields" to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Dashboard-Dataset Junction Tab -->
+            <div id="dashboard-dataset-junction-tab" class="tab-content">
+                <h2>Dashboard-Dataset Junction</h2>
+                <p class="info-text">Relationship mapping between dashboards and datasets they use</p>
+
+                <div class="controls">
+                    <button id="load-junction" class="btn btn-primary">Load All Relationships</button>
+                    <button id="export-junction-csv" class="btn btn-success" disabled>Export to CSV</button>
+                    <button id="upload-junction-crma" class="btn btn-info" disabled>Upload to CRMA</button>
+                </div>
+
+                <div id="junction-loading" class="loading hidden">Loading relationships...</div>
+                <div id="junction-error" class="error hidden"></div>
+                <div id="junction-count" class="count-badge hidden"></div>
+
+                <div class="table-container">
+                    <table id="junction-table">
+                        <thead>
+                            <tr>
+                                <th>Dashboard Name</th>
+                                <th>Dataset Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="junction-tbody">
+                            <tr>
+                                <td colspan="2" class="no-data">Click "Load All Relationships" to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-content">
+                <h2>Salesforce Configuration</h2>
+                <p class="info-text">
+                    Configure your Salesforce connection. These settings override environment variables.
+                </p>
+
+                <form id="settings-form">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username"
+                               placeholder="user@example.com" required>
+                        <small>Your Salesforce username</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loginUrl">Login URL</label>
+                        <input type="text" id="loginUrl" name="loginUrl"
+                               placeholder="https://login.salesforce.com" required>
+                        <small>Salesforce login URL (use https://test.salesforce.com for sandboxes)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="instanceUrl">Instance URL (Optional)</label>
+                        <input type="text" id="instanceUrl" name="instanceUrl"
+                               placeholder="https://yourorg.my.salesforce.com">
+                        <small>Leave blank to auto-detect after login</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="applicationName">Application Name</label>
+                        <div class="select-with-refresh">
+                            <select id="applicationName" name="applicationName" required>
+                                <option value="">Loading applications...</option>
+                            </select>
+                            <button type="button" id="refresh-folders" class="btn btn-secondary btn-small">Refresh</button>
+                        </div>
+                        <small>CRMA folder/application where metadata datasets will be uploaded</small>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Settings</button>
+                        <button type="button" id="test-connection" class="btn btn-secondary">Test Connection</button>
+                    </div>
+                </form>
+
+                <div id="settings-message" class="hidden"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Upload to CRMA</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="upload-description"></p>
+                <div class="form-group">
+                    <label for="dataset-name">Dataset Name</label>
+                    <input type="text" id="dataset-name"
+                           placeholder="Enter CRMA dataset name" required>
+                    <small>Name for the dataset in CRMA Analytics</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-upload" class="btn btn-primary">Upload</button>
+                <button class="modal-close btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
