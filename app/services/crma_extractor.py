@@ -545,3 +545,52 @@ class CRMAExtractor:
                     errors.append(result['error'])
 
         return {'relationships': junction_data, 'errors': errors}
+
+    def get_dataset_fields_concurrent(self, datasets, max_workers=5):
+        """
+        Extract fields from multiple datasets concurrently
+        Args:
+            datasets: List of dataset metadata dicts (must have 'Id' and 'DatasetName')
+            max_workers: Maximum number of concurrent threads (default: 5)
+        Returns:
+            dict with 'fields' (list of field records) and 'errors' (list of error messages)
+        """
+        all_fields = []
+        errors = []
+
+        def extract_single_dataset(dataset):
+            """Helper function to extract fields from a single dataset"""
+            try:
+                fields = self.get_dataset_fields(dataset['Id'])
+                # Add dataset name to each field
+                fields_with_dataset = []
+                for field in fields:
+                    fields_with_dataset.append({
+                        'DatasetName': dataset['DatasetName'],
+                        'FieldName': field['FieldName'],
+                        'Label': field['Label'],
+                        'Type': field['Type']
+                    })
+                return {'success': True, 'fields': fields_with_dataset}
+            except Exception as e:
+                error_msg = f"Error extracting fields from dataset {dataset['DatasetName']}: {e}"
+                print(error_msg)
+                return {'success': False, 'error': error_msg}
+
+        # Process datasets concurrently
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_dataset = {
+                executor.submit(extract_single_dataset, dataset): dataset
+                for dataset in datasets
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_dataset):
+                result = future.result()
+                if result['success']:
+                    all_fields.extend(result['fields'])
+                else:
+                    errors.append(result['error'])
+
+        return {'fields': all_fields, 'errors': errors}

@@ -15,7 +15,15 @@
             </div>
         </header>
 
-        <nav class="tabs">
+        <nav class="tabs" id="main-tabs">
+            <button class="tab-button active" data-tab="home">Home</button>
+            <button class="tab-button" data-tab="automated">Automated</button>
+            <button class="tab-button" data-tab="manual">Manual</button>
+            <button class="tab-button" data-tab="settings">Settings</button>
+        </nav>
+
+        <nav class="tabs hidden" id="manual-tabs">
+            <button class="back-button" data-tab="home">← Back to Home</button>
             <button class="tab-button active" data-tab="dashboards">Dashboards</button>
             <button class="tab-button" data-tab="datasets">Datasets</button>
             <button class="tab-button" data-tab="applications">Applications</button>
@@ -23,12 +31,141 @@
             <button class="tab-button" data-tab="dashboard-fields">Dashboard Fields</button>
             <button class="tab-button" data-tab="dataset-fields">Dataset Fields</button>
             <button class="tab-button" data-tab="dashboard-dataset-junction">Dashboard-Dataset Junction</button>
-            <button class="tab-button" data-tab="settings">Settings</button>
         </nav>
 
         <main>
+            <!-- Home Tab -->
+            <div id="home-tab" class="tab-content active">
+                <div class="home-container">
+                    <h1>CRMA Metadata Extractor</h1>
+                    <p class="home-subtitle">Extract and upload CRM Analytics metadata with ease</p>
+
+                    <div class="home-cards">
+                        <div class="home-card">
+                            <div class="card-icon">🤖</div>
+                            <h2>Automated</h2>
+                            <p>Extract all metadata types and upload to CRMA automatically</p>
+                            <button class="btn btn-primary btn-large" data-nav="automated">Start Automated Extraction</button>
+                        </div>
+
+                        <div class="home-card">
+                            <div class="card-icon">🔧</div>
+                            <h2>Manual</h2>
+                            <p>Browse and extract specific dashboards, datasets, or fields individually</p>
+                            <button class="btn btn-secondary btn-large" data-nav="manual">Open Manual Mode</button>
+                        </div>
+
+                        <div class="home-card">
+                            <div class="card-icon">⚙️</div>
+                            <h2>Settings</h2>
+                            <p>Configure Salesforce connection and CRMA application settings</p>
+                            <button class="btn btn-info btn-large" data-nav="settings">Configure Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Automated Tab -->
+            <div id="automated-tab" class="tab-content">
+                <h2>Automated Extraction</h2>
+                <p class="info-text">
+                    This will extract all metadata types and upload them to your configured CRMA application.
+                </p>
+
+                <div class="automated-controls">
+                    <div class="application-info">
+                        <strong>Target Application:</strong> <span id="auto-application-name">Not configured</span>
+                        <button class="btn btn-small btn-secondary" data-nav="settings">Change</button>
+                    </div>
+                    <button id="start-automated" class="btn btn-primary btn-large">Extract All & Upload</button>
+                </div>
+
+                <div id="automated-progress" class="hidden">
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">1. Dashboards</span>
+                            <span class="progress-status" id="status-dashboards">Pending</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-dashboards"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">2. Datasets</span>
+                            <span class="progress-status" id="status-datasets">Pending</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-datasets"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">3. Applications</span>
+                            <span class="progress-status" id="status-applications">Pending</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-applications"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">4. Recipes</span>
+                            <span class="progress-status" id="status-recipes">Pending</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-recipes"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">5. Dashboard Fields</span>
+                            <span class="progress-status" id="status-dashboard-fields">Pending</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-dashboard-fields"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">6. Dataset Fields</span>
+                            <span class="progress-status" id="status-dataset-fields">Pending</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-dataset-fields"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">7. Dashboard-Dataset Junction</span>
+                            <span class="progress-status" id="status-junction">Pending</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-junction"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="automated-summary" class="hidden">
+                    <h3>Extraction Summary</h3>
+                    <div id="summary-content"></div>
+                    <button class="btn btn-primary" data-nav="home">Back to Home</button>
+                </div>
+            </div>
+
+            <!-- Manual Tab (wrapper for all manual sub-tabs) -->
+            <div id="manual-tab" class="tab-content">
+                <!-- This will be handled by showing manual-tabs nav -->
+            </div>
+
             <!-- Dashboards Tab -->
-            <div id="dashboards-tab" class="tab-content active">
+            <div id="dashboards-tab" class="tab-content manual-content">
                 <h2>Dashboards</h2>
                 <p class="info-text">List of all CRMA dashboards with metadata</p>
 
@@ -64,7 +201,7 @@
             </div>
 
             <!-- Datasets Tab -->
-            <div id="datasets-tab" class="tab-content">
+            <div id="datasets-tab" class="tab-content manual-content">
                 <h2>Datasets</h2>
                 <p class="info-text">List of all CRMA datasets with metadata</p>
 
@@ -98,7 +235,7 @@
             </div>
 
             <!-- Applications Tab -->
-            <div id="applications-tab" class="tab-content">
+            <div id="applications-tab" class="tab-content manual-content">
                 <h2>Applications</h2>
                 <p class="info-text">List of all CRMA applications/folders</p>
 
@@ -130,7 +267,7 @@
             </div>
 
             <!-- Recipes Tab -->
-            <div id="recipes-tab" class="tab-content">
+            <div id="recipes-tab" class="tab-content manual-content">
                 <h2>Recipes</h2>
                 <p class="info-text">List of all CRMA recipes (dataflows) with scheduling status</p>
 
@@ -164,7 +301,7 @@
             </div>
 
             <!-- Dashboard Fields Tab -->
-            <div id="dashboard-fields-tab" class="tab-content">
+            <div id="dashboard-fields-tab" class="tab-content manual-content">
                 <h2>Dashboard Fields</h2>
                 <p class="info-text">All fields used across all dashboards (extracted from steps, filters, and links)</p>
 
@@ -198,7 +335,7 @@
             </div>
 
             <!-- Dataset Fields Tab -->
-            <div id="dataset-fields-tab" class="tab-content">
+            <div id="dataset-fields-tab" class="tab-content manual-content">
                 <h2>Dataset Fields</h2>
                 <p class="info-text">All fields defined in dataset XMD metadata (dimensions, measures, dates)</p>
 
@@ -232,7 +369,7 @@
             </div>
 
             <!-- Dashboard-Dataset Junction Tab -->
-            <div id="dashboard-dataset-junction-tab" class="tab-content">
+            <div id="dashboard-dataset-junction-tab" class="tab-content manual-content">
                 <h2>Dashboard-Dataset Junction</h2>
                 <p class="info-text">Relationship mapping between dashboards and datasets they use</p>
 
@@ -270,7 +407,9 @@
                     Configure your Salesforce connection. These settings override environment variables.
                 </p>
 
-                <form id="settings-form">
+                <!-- Connection Settings Section -->
+                <form id="connection-settings-form">
+                    <h3>Connection Settings</h3>
                     <div class="form-group">
                         <label for="username">Username</label>
                         <input type="text" id="username" name="username"
@@ -292,11 +431,27 @@
                         <small>Leave blank to auto-detect after login</small>
                     </div>
 
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Connection Settings</button>
+                        <button type="button" id="test-connection" class="btn btn-secondary">Test Connection</button>
+                    </div>
+                </form>
+
+                <div id="connection-message" class="hidden"></div>
+
+                <!-- Application Settings Section -->
+                <form id="application-settings-form" style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid #e0e0e0;">
+                    <h3>Application Settings</h3>
+                    <p class="info-text">
+                        Select the CRMA folder/application where metadata datasets will be uploaded.
+                        <strong>Save connection settings and test the connection first to load applications.</strong>
+                    </p>
+
                     <div class="form-group">
                         <label for="applicationName">Application Name</label>
                         <div class="select-with-refresh">
-                            <select id="applicationName" name="applicationName" required>
-                                <option value="">Loading applications...</option>
+                            <select id="applicationName" name="applicationName">
+                                <option value="">-- Select Application --</option>
                             </select>
                             <button type="button" id="refresh-folders" class="btn btn-secondary btn-small">Refresh</button>
                         </div>
@@ -304,12 +459,11 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Save Settings</button>
-                        <button type="button" id="test-connection" class="btn btn-secondary">Test Connection</button>
+                        <button type="submit" class="btn btn-success">Save Application</button>
                     </div>
                 </form>
 
-                <div id="settings-message" class="hidden"></div>
+                <div id="application-message" class="hidden"></div>
             </div>
         </main>
     </div>

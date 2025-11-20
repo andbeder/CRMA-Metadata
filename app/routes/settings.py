@@ -19,34 +19,43 @@ def get_settings():
 
 @bp.route('/', methods=['POST'])
 def update_settings():
-    """Update settings"""
+    """Update settings (supports partial updates)"""
     try:
         data = request.json
 
-        settings = {}
-        if data.get('username'):
-            settings['username'] = data['username']
-            Config.SFDC_USERNAME = data['username']
+        # Load existing settings first to merge
+        existing_settings = {}
+        if os.path.exists(Config.SETTINGS_FILE):
+            try:
+                import json
+                with open(Config.SETTINGS_FILE, 'r') as f:
+                    existing_settings = json.load(f)
+            except Exception:
+                pass
 
-        if data.get('loginUrl'):
-            settings['login_url'] = data['loginUrl']
-            Config.SFDC_LOGIN_URL = data['loginUrl']
+        # Update only the provided fields
+        if data.get('username') is not None:
+            existing_settings['username'] = data['username']
 
-        if data.get('instanceUrl'):
-            settings['instance_url'] = data['instanceUrl']
-            Config.SF_INSTANCE_URL = data['instanceUrl']
+        if data.get('loginUrl') is not None:
+            existing_settings['login_url'] = data['loginUrl']
 
-        if data.get('applicationName'):
-            settings['application_name'] = data['applicationName']
-            Config.CRMA_APPLICATION_NAME = data['applicationName']
+        if data.get('instanceUrl') is not None:
+            existing_settings['instance_url'] = data['instanceUrl']
 
-        # Save to file
-        Config.save_user_settings(settings)
+        if data.get('applicationName') is not None:
+            existing_settings['application_name'] = data['applicationName']
 
-        # Clear cached auth to force re-authentication with new settings
-        from app.routes.api import _auth
-        if _auth:
-            _auth.token_cache.clear()
+        # Save merged settings to file
+        if not Config.save_user_settings(existing_settings):
+            return jsonify({'error': 'Failed to save settings'}), 500
+
+        # Reload user settings to update Config class attributes
+        Config.load_user_settings()
+
+        # Clear cached auth instance to force re-initialization with new settings
+        import app.routes.api as api_module
+        api_module._auth = None
 
         return jsonify({
             'success': True,

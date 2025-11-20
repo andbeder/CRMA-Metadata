@@ -190,7 +190,7 @@ def extract_all_dashboard_fields():
 
 @bp.route('/extract/all-dataset-fields', methods=['GET'])
 def extract_all_dataset_fields():
-    """Extract fields from ALL datasets"""
+    """Extract fields from ALL datasets (with concurrent processing)"""
     try:
         auth = get_auth()
         token_info = auth.get_token()
@@ -202,25 +202,15 @@ def extract_all_dataset_fields():
 
         # Get all datasets
         datasets = extractor.get_datasets()
-        all_fields = []
 
-        # Extract fields from each dataset
-        for dataset in datasets:
-            try:
-                fields = extractor.get_dataset_fields(dataset['Id'])
-                # Add dataset name to each field
-                for field in fields:
-                    all_fields.append({
-                        'DatasetName': dataset['DatasetName'],
-                        'FieldName': field['FieldName'],
-                        'Label': field['Label'],
-                        'Type': field['Type']
-                    })
-            except Exception as e:
-                print(f"Error extracting fields from dataset {dataset['DatasetName']}: {e}")
-                continue
+        # Extract fields from all datasets concurrently (max 5 threads)
+        result = extractor.get_dataset_fields_concurrent(datasets, max_workers=5)
 
-        return jsonify({'fields': all_fields, 'count': len(all_fields)})
+        return jsonify({
+            'fields': result['fields'],
+            'count': len(result['fields']),
+            'errors': result['errors'] if result['errors'] else None
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -28,6 +28,14 @@ class CRMAApp {
             button.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
         });
 
+        // Navigation from home cards
+        document.querySelectorAll('[data-nav]').forEach(button => {
+            button.addEventListener('click', (e) => this.navigate(e.target.dataset.nav));
+        });
+
+        // Automated extraction
+        document.getElementById('start-automated').addEventListener('click', () => this.startAutomatedExtraction());
+
         // Dashboards
         document.getElementById('load-dashboards').addEventListener('click', () => this.loadDashboards());
         document.getElementById('export-dashboards-csv').addEventListener('click', () => this.exportCSV('dashboards', this.dashboards));
@@ -64,7 +72,8 @@ class CRMAApp {
         document.getElementById('upload-junction-crma').addEventListener('click', () => this.showUploadModal('junction', this.junctionData));
 
         // Settings
-        document.getElementById('settings-form').addEventListener('submit', (e) => this.saveSettings(e));
+        document.getElementById('connection-settings-form').addEventListener('submit', (e) => this.saveConnectionSettings(e));
+        document.getElementById('application-settings-form').addEventListener('submit', (e) => this.saveApplicationSettings(e));
         document.getElementById('test-connection').addEventListener('click', () => this.testConnection());
         document.getElementById('refresh-folders').addEventListener('click', () => this.loadFolders());
 
@@ -75,12 +84,62 @@ class CRMAApp {
         document.getElementById('confirm-upload').addEventListener('click', () => this.confirmUpload());
     }
 
-    switchTab(tabName) {
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    navigate(destination) {
+        if (destination === 'manual') {
+            // Show manual tabs navigation
+            document.getElementById('main-tabs').classList.add('hidden');
+            document.getElementById('manual-tabs').classList.remove('hidden');
 
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.getElementById(`${tabName}-tab`).classList.add('active');
+            // Hide all main tabs, show first manual tab
+            document.querySelectorAll('.tab-content:not(.manual-content)').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.manual-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('dashboards-tab').classList.add('active');
+        } else if (destination === 'home') {
+            // Show main tabs navigation
+            document.getElementById('main-tabs').classList.remove('hidden');
+            document.getElementById('manual-tabs').classList.add('hidden');
+
+            // Show home tab
+            this.switchTab('home');
+        } else {
+            // Regular tab navigation
+            this.switchTab(destination);
+        }
+    }
+
+    switchTab(tabName) {
+        // Update active tab button in visible nav
+        const visibleNav = document.getElementById('main-tabs').classList.contains('hidden') ?
+            document.getElementById('manual-tabs') : document.getElementById('main-tabs');
+
+        visibleNav.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        const targetBtn = visibleNav.querySelector(`[data-tab="${tabName}"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+
+        // Handle tab content visibility
+        if (tabName === 'manual') {
+            // Switching to manual mode
+            this.navigate('manual');
+        } else {
+            // Regular tab switching
+            document.querySelectorAll('.tab-content:not(.manual-content)').forEach(content => content.classList.remove('active'));
+            const targetTab = document.getElementById(`${tabName}-tab`);
+            if (targetTab) targetTab.classList.add('active');
+
+            // If we're in manual mode and switching manual tabs
+            if (!document.getElementById('manual-tabs').classList.contains('hidden')) {
+                document.querySelectorAll('.manual-content').forEach(content => content.classList.remove('active'));
+                const manualTab = document.getElementById(`${tabName}-tab`);
+                if (manualTab && manualTab.classList.contains('manual-content')) {
+                    manualTab.classList.add('active');
+                }
+            }
+
+            // Update application name in automated tab
+            if (tabName === 'automated') {
+                this.updateAutomatedApplicationName();
+            }
+        }
     }
 
     async checkStatus() {
@@ -669,14 +728,13 @@ class CRMAApp {
         }
     }
 
-    async saveSettings(e) {
+    async saveConnectionSettings(e) {
         e.preventDefault();
 
         const settings = {
             username: document.getElementById('username').value,
             loginUrl: document.getElementById('loginUrl').value,
-            instanceUrl: document.getElementById('instanceUrl').value,
-            applicationName: document.getElementById('applicationName').value
+            instanceUrl: document.getElementById('instanceUrl').value
         };
 
         try {
@@ -688,13 +746,13 @@ class CRMAApp {
 
             const result = await response.json();
 
-            const messageDiv = document.getElementById('settings-message');
+            const messageDiv = document.getElementById('connection-message');
             if (result.error) {
                 messageDiv.className = 'error';
                 messageDiv.textContent = `Error: ${result.error}`;
             } else {
                 messageDiv.className = 'success';
-                messageDiv.textContent = 'Settings saved successfully!';
+                messageDiv.textContent = 'Connection settings saved successfully! You can now test the connection and refresh folders.';
                 this.checkStatus();
             }
             messageDiv.classList.remove('hidden');
@@ -702,7 +760,47 @@ class CRMAApp {
             setTimeout(() => messageDiv.classList.add('hidden'), 5000);
 
         } catch (err) {
-            alert(`Failed to save settings: ${err.message}`);
+            alert(`Failed to save connection settings: ${err.message}`);
+        }
+    }
+
+    async saveApplicationSettings(e) {
+        e.preventDefault();
+
+        const applicationName = document.getElementById('applicationName').value;
+
+        if (!applicationName) {
+            alert('Please select an application from the dropdown');
+            return;
+        }
+
+        const settings = {
+            applicationName: applicationName
+        };
+
+        try {
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            });
+
+            const result = await response.json();
+
+            const messageDiv = document.getElementById('application-message');
+            if (result.error) {
+                messageDiv.className = 'error';
+                messageDiv.textContent = `Error: ${result.error}`;
+            } else {
+                messageDiv.className = 'success';
+                messageDiv.textContent = 'Application saved successfully!';
+            }
+            messageDiv.classList.remove('hidden');
+
+            setTimeout(() => messageDiv.classList.add('hidden'), 5000);
+
+        } catch (err) {
+            alert(`Failed to save application: ${err.message}`);
         }
     }
 
@@ -715,7 +813,7 @@ class CRMAApp {
             const response = await fetch('/api/status');
             const data = await response.json();
 
-            const messageDiv = document.getElementById('settings-message');
+            const messageDiv = document.getElementById('connection-message');
             if (data.status === 'connected') {
                 messageDiv.className = 'success';
                 messageDiv.textContent = `Connection successful! Instance: ${data.instanceUrl}`;
@@ -734,6 +832,185 @@ class CRMAApp {
             btn.disabled = false;
             btn.textContent = 'Test Connection';
         }
+    }
+
+    updateAutomatedApplicationName() {
+        const appName = document.getElementById('applicationName').value || 'Not configured';
+        document.getElementById('auto-application-name').textContent = appName;
+    }
+
+    async startAutomatedExtraction() {
+        const appName = document.getElementById('applicationName').value;
+
+        if (!appName) {
+            alert('Please configure an application in Settings first');
+            this.navigate('settings');
+            return;
+        }
+
+        const startBtn = document.getElementById('start-automated');
+        startBtn.disabled = true;
+        startBtn.textContent = 'Running...';
+
+        // Show progress section
+        document.getElementById('automated-progress').classList.remove('hidden');
+        document.getElementById('automated-summary').classList.add('hidden');
+
+        // Reset all progress
+        this.resetProgress();
+
+        // Run all extractions sequentially
+        const results = [];
+
+        results.push(await this.extractAndUpload('dashboards', 'Dashboards'));
+        results.push(await this.extractAndUpload('datasets', 'Datasets'));
+        results.push(await this.extractAndUpload('applications', 'Applications'));
+        results.push(await this.extractAndUpload('recipes', 'Recipes'));
+        results.push(await this.extractAndUpload('dashboard-fields', 'DashboardFields'));
+        results.push(await this.extractAndUpload('dataset-fields', 'Fields'));
+        results.push(await this.extractAndUpload('junction', 'DashboardDatasetJunction'));
+
+        // Show summary
+        this.showSummary(results);
+
+        startBtn.disabled = false;
+        startBtn.textContent = 'Extract All & Upload';
+    }
+
+    async extractAndUpload(type, datasetName) {
+        const typeKey = type === 'junction' ? 'junction' :
+                       type === 'dashboard-fields' ? 'dashboard-fields' :
+                       type === 'dataset-fields' ? 'dataset-fields' : type;
+
+        try {
+            // Update status to extracting
+            this.updateProgress(typeKey, 'extracting', 33);
+
+            // Extract data
+            let data;
+            let endpoint;
+
+            if (type === 'dashboard-fields') {
+                endpoint = '/api/extract/all-dashboard-fields';
+            } else if (type === 'dataset-fields') {
+                endpoint = '/api/extract/all-dataset-fields';
+            } else if (type === 'junction') {
+                endpoint = '/api/extract/dashboard-dataset-junction';
+            } else {
+                endpoint = `/api/${type}`;
+            }
+
+            const extractResponse = await fetch(endpoint);
+            const extractData = await extractResponse.json();
+
+            if (extractData.error) throw new Error(extractData.error);
+
+            // Get the actual data array
+            if (type === 'dashboard-fields') {
+                data = extractData.fields;
+            } else if (type === 'dataset-fields') {
+                data = extractData.fields;
+            } else if (type === 'junction') {
+                data = extractData.relationships;
+            } else {
+                data = extractData[type];
+            }
+
+            this.updateProgress(typeKey, 'uploading', 66);
+
+            // Upload to CRMA
+            const uploadResponse = await fetch('/api/upload-crma', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: type,
+                    data: data,
+                    datasetName: datasetName
+                })
+            });
+
+            const uploadResult = await uploadResponse.json();
+
+            if (uploadResult.error) throw new Error(uploadResult.error);
+
+            this.updateProgress(typeKey, 'completed', 100);
+
+            return {
+                type: datasetName,
+                success: true,
+                count: data.length,
+                jobId: uploadResult.jobId
+            };
+
+        } catch (error) {
+            this.updateProgress(typeKey, 'error', 100);
+            return {
+                type: datasetName,
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    resetProgress() {
+        const types = ['dashboards', 'datasets', 'applications', 'recipes',
+                      'dashboard-fields', 'dataset-fields', 'junction'];
+
+        types.forEach(type => {
+            const status = document.getElementById(`status-${type}`);
+            const progress = document.getElementById(`progress-${type}`);
+
+            status.textContent = 'Pending';
+            status.className = 'progress-status pending';
+            progress.style.width = '0%';
+            progress.className = 'progress-fill';
+        });
+    }
+
+    updateProgress(type, status, percentage) {
+        const statusEl = document.getElementById(`status-${type}`);
+        const progressEl = document.getElementById(`progress-${type}`);
+
+        const statusText = {
+            'pending': 'Pending',
+            'extracting': 'Extracting...',
+            'uploading': 'Uploading...',
+            'completed': 'Completed',
+            'error': 'Error'
+        };
+
+        statusEl.textContent = statusText[status];
+        statusEl.className = `progress-status ${status}`;
+        progressEl.style.width = `${percentage}%`;
+
+        if (status === 'completed') {
+            progressEl.classList.add('completed');
+        } else if (status === 'error') {
+            progressEl.classList.add('error');
+        }
+    }
+
+    showSummary(results) {
+        const summaryContent = document.getElementById('summary-content');
+        const successCount = results.filter(r => r.success).length;
+        const totalCount = results.length;
+
+        let html = `<p><strong>${successCount} of ${totalCount} datasets uploaded successfully</strong></p>`;
+
+        results.forEach(result => {
+            const className = result.success ? 'summary-item' : 'summary-item error';
+            const icon = result.success ? '✓' : '✗';
+            const message = result.success ?
+                `${result.count} records uploaded (Job ID: ${result.jobId})` :
+                `Failed: ${result.error}`;
+
+            html += `<div class="${className}">
+                <strong>${icon} ${result.type}</strong>: ${message}
+            </div>`;
+        });
+
+        summaryContent.innerHTML = html;
+        document.getElementById('automated-summary').classList.remove('hidden');
     }
 
     escapeHtml(text) {
